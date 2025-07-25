@@ -133,6 +133,11 @@
       <option value="">--Select--</option>
       <option value="csitbe">B.Tech. (Information Tech.)</option>
       <option value="cscobe">B.Tech. (Computer Science)</option>
+      <!-- <option value="csmebe">B.Tech. (Mechanical Engg.)</option>
+      <option value="csagbe">B.Tech (Agricultural Engg.)</option>
+      <option value="cscebe">B.Tech. (Chemical Engg.)</option>
+      <option value="csecbe">B.Tech. (Electonics &amp; Comm.)</option>
+      <option value="cseibe">B.Tech. (Electronics &amp; instrumantation)</option> -->
     </select>
   </label>
   <label>Semester:
@@ -140,6 +145,11 @@
       <option value="">--Select--</option>
       <option value="8">VIII</option>
       <option value="7">VII</option>
+      <option value="6">VI</option>
+      <!-- <option value="5">V</option> -->
+      <option value="4">IV</option>
+      <!-- <option value="3">III</option> -->
+      <!-- <option value="2">II</option> -->
     </select>
   </label>
   <label>Roll Number:
@@ -158,25 +168,71 @@
 
 <script>
 const subjectMeta = {
-  '701': { credit: 3, maxMarks: 150 },
-  '710': { credit: 3, maxMarks: 150 }, //
-  '711': { credit: 3, maxMarks: 150 },
-  '713': { credit: 3, maxMarks: 150 }, //
-  '714': { credit: 3, maxMarks: 150 },
-  '715': { credit: 3, maxMarks: 150 },
-  '759': { credit: 1, maxMarks: 50 },//
-  '760': { credit: 4, maxMarks: 150 },//
-  '761': { credit: 1, maxMarks: 50 },//
-  '763': { credit: 1, maxMarks: 50 },
-  '764': { credit: 1, maxMarks: 50 },
-  '765': { credit: 4, maxMarks: 150 },
-  '801': { credit: 3, maxMarks: 150 },
-  '811': { credit: 3, maxMarks: 150 },
-  '812': { credit: 3, maxMarks: 150 },
-  '816': { credit: 3, maxMarks: 150 },
-  '817': { credit: 3, maxMarks: 150 },
-  '866': { credit: 9, maxMarks: 400 },
-  '861': { credit: 9, maxMarks: 400 },
+  '2':{ // // Semester 2
+    '201': {credit: 3, maxMarks: 150},
+  },
+  '3':{ // Semester 3
+    '301': {credit: 3, maxMarks: 150},
+  },
+  '4':{ // Semester 4
+    '405': {credit: 4, maxMarks: 100},
+    '406': {credit: 4, maxMarks: 100},
+    '407': {credit: 4, maxMarks: 100},
+    '408': {credit: 3, maxMarks: 100},
+    '410': {credit: 2, maxMarks: 100},
+    '414': {credit: 3, maxMarks: 100},
+    '454': {credit: 0, maxMarks: 100},
+    '456': {credit: 1, maxMarks: 100},
+    '458': {credit: 1, maxMarks: 100},
+    '459': {credit: 1, maxMarks: 100},
+  },
+  '5':{ // Semester 5
+    '510': {credit: 0, maxMarks: 100},
+    '511': {credit: 4, maxMarks: 100},
+    '512': {credit: 4, maxMarks: 100},
+    '515': {credit: 3, maxMarks: 100},
+    '516': {credit: 4, maxMarks: 100},
+    '517': {credit: 4, maxMarks: 100},
+    '561': {credit: 1, maxMarks: 100},
+    '562': {credit: 1, maxMarks: 100},
+    '565': {credit: 1, maxMarks: 100},
+    '566': {credit: 1, maxMarks: 100},
+  },
+  '6':{ // Semester 6
+    '609': {credit: 0, maxMarks: 100},
+    '612': {credit: 4, maxMarks: 100},
+    '613': {credit: 4, maxMarks: 100},
+    '617': {credit: 4, maxMarks: 100},
+    '618': {credit: 3, maxMarks: 100},
+    '619': {credit: 3, maxMarks: 100},
+    '662': {credit: 1, maxMarks: 100},
+    '663': {credit: 1, maxMarks: 100},
+    '667': {credit: 1, maxMarks: 100},
+  },
+  '7': { // Semester 7
+    '701': { credit: 3, maxMarks: 150 },
+    '710': { credit: 3, maxMarks: 150 },
+    '711': { credit: 3, maxMarks: 150 },
+    '713': { credit: 3, maxMarks: 150 },
+    '714': { credit: 3, maxMarks: 150 },
+    '715': { credit: 3, maxMarks: 150 },
+    '759': { credit: 1, maxMarks: 50 },
+    '760': { credit: 4, maxMarks: 150 },
+    '761': { credit: 1, maxMarks: 50 },
+    '763': { credit: 1, maxMarks: 50 },
+    '764': { credit: 1, maxMarks: 50 },
+    '765': { credit: 4, maxMarks: 150 }
+  },
+
+  '8': { // Semester 8
+    '801': { credit: 3, maxMarks: 150 },
+    '811': { credit: 3, maxMarks: 150 },
+    '812': { credit: 3, maxMarks: 150 },
+    '816': { credit: 3, maxMarks: 150 },
+    '817': { credit: 3, maxMarks: 150 },
+    '861': { credit: 9, maxMarks: 400 },
+    '866': { credit: 9, maxMarks: 400 }
+  }
 };
 
 let lastResultData = null; // store for PDF
@@ -192,13 +248,28 @@ function getGradePoint(percent) {
   return 0;
 }
 
+// SGPA calculator (automatic semester detect)
 function calculateSGPA(marks) {
+  const subjectCodes = Object.keys(marks);
+  if (subjectCodes.length === 0) {
+    return { sgpa: "0.00", detailed: [] }; // no data
+  }
+
+  // Pehle subject code ka first character se semester detect karo
+  const firstCode = subjectCodes[0];
+  const semester = firstCode[0]; // '7' ya '8'
+
+  const semesterSubjects = subjectMeta[semester];
+  if (!semesterSubjects) {
+    return { sgpa: "0.00", detailed: [] }; // unknown semester
+  }
+
   let totalCredits = 0, totalPoints = 0;
   const detailed = [];
 
-  for (const code in marks) {
-    const meta = subjectMeta[code];
-    if (!meta) continue;
+  for (const code of subjectCodes) {
+    const meta = semesterSubjects[code];
+    if (!meta) continue; // Unknown subject, skip
 
     const { credit, maxMarks } = meta;
     const { theory, practical } = marks[code];
