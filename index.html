@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>CCS Result & CGPA Calculate</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
+  h1 { color: #004080; }
+  form, #output { background: #fff; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1);}
+  label { display: block; margin: 10px 0; }
+  input, select { padding: 6px; width: 100%; max-width: 300px; }
+  button { padding: 8px 16px; margin-top: 10px; background: #004080; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+  button:hover { background: #0066cc; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+  th { background: #004080; color: #fff; }
+  .section { margin-top: 20px; }
+  pre { background: #eee; padding: 10px; }
+  footer {
+  background: #004080; 
+  color: white;
+  text-align: center;
+  padding: 10px;
+  margin-top: 30px;
+  border-radius: 4px;
+  }
+
+</style>
+</head>
+<body>
+<h1>CCS University Result & SGPA/CGPA Calculator</h1>
+
+<form id="resultForm">
+  <label>Course:
+    <select name="crsselect" required>
+      <option value="">--Select--</option>
+      <option value="csitbe">B.Tech. (Information Tech.)</option>
+      <option value="cscobe">B.Tech. (Computer Science)</option>
+    </select>
+  </label>
+  <label>Semester:
+    <select name="yrselect" required>
+      <option value="">--Select--</option>
+      <option value="8">VIII</option>
+      <option value="7">VII</option>
+    </select>
+  </label>
+  <label>Roll Number:
+    <input type="text" name="textrollnum" required />
+  </label>
+  <button type="submit">Check Result</button>
+</form>
+
+<div id="output"></div>
+
+<footer>
+  © 2025 Nilesh Singh
+</footer>
+
+
+<script>
+const subjectMeta = {
+  '701': { credit: 3, maxMarks: 150 },
+  '710': { credit: 3, maxMarks: 150 }, //
+  '711': { credit: 3, maxMarks: 150 },
+  '713': { credit: 3, maxMarks: 150 }, //
+  '714': { credit: 3, maxMarks: 150 },
+  '715': { credit: 3, maxMarks: 150 },
+  '759': { credit: 1, maxMarks: 50 },//
+  '760': { credit: 4, maxMarks: 150 },//
+  '761': { credit: 1, maxMarks: 50 },//
+  '763': { credit: 1, maxMarks: 50 },
+  '764': { credit: 1, maxMarks: 50 },
+  '765': { credit: 4, maxMarks: 150 },
+  '801': { credit: 3, maxMarks: 150 },
+  '811': { credit: 3, maxMarks: 150 },
+  '812': { credit: 3, maxMarks: 150 },
+  '816': { credit: 3, maxMarks: 150 },
+  '817': { credit: 3, maxMarks: 150 },
+  '866': { credit: 9, maxMarks: 400 },
+  '861': { credit: 9, maxMarks: 400 },
+};
+
+let lastResultData = null; // store for PDF
+
+function getGradePoint(percent) {
+  if (percent >= 90) return 10;
+  if (percent >= 80) return 9;
+  if (percent >= 70) return 8;
+  if (percent >= 60) return 7;
+  if (percent >= 50) return 6;
+  if (percent >= 45) return 5;
+  if (percent >= 40) return 4;
+  return 0;
+}
+
+function calculateSGPA(marks) {
+  let totalCredits = 0, totalPoints = 0;
+  const detailed = [];
+
+  for (const code in marks) {
+    const meta = subjectMeta[code];
+    if (!meta) continue;
+
+    const { credit, maxMarks } = meta;
+    const { theory, practical } = marks[code];
+    const total = Number(theory || 0) + Number(practical || 0);
+    const percent = (total / maxMarks) * 100;
+    const gradePoint = (percent < 40) ? 0 : getGradePoint(percent);
+
+    totalCredits += credit;
+    totalPoints += gradePoint * credit;
+
+    detailed.push({
+      code, theory, practical, total, percent: percent.toFixed(2), gradePoint
+    });
+  }
+
+  const sgpa = totalCredits ? (totalPoints / totalCredits).toFixed(2) : "0.00";
+  return { sgpa, detailed };
+}
+
+function calculateFinalCGPA(currentSGPA, currentCredits, prevCGPA, prevCredits) {
+  const final = (
+    (currentSGPA * currentCredits + prevCGPA * prevCredits) / (currentCredits + prevCredits)
+  );
+  const percent = final * 10;
+  let division = '';
+  if (final >= 7.5) division = "First Division with Honours";
+  else if (final >= 6.5) division = "First Division";
+  else if (final >= 5.0) division = "Second Division";
+  else division = "Fail";
+  return {
+    cgpa: final.toFixed(2),
+    percentage: percent.toFixed(2),
+    division
+  };
+}
+
+document.getElementById('resultForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const data = {
+    crsselect: e.target.crsselect.value,
+    yrselect: e.target.yrselect.value,
+    textrollnum: e.target.textrollnum.value.trim()
+  };
+  const output = document.getElementById('output');
+  output.innerHTML = '<p>Loading...</p>';
+
+  try {
+    const res = await fetch('/get-result', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    if (result.error) {
+      output.innerHTML = `<p style="color:red;">${result.error}</p>`;
+      return;
+    }
+
+    const { sgpa, detailed } = calculateSGPA(result.marks);
+    const creditsThisSem = Object.keys(result.marks).reduce((sum, code) =>
+      sum + (subjectMeta[code]?.credit || 0), 0);
+
+    lastResultData = { result, detailed, sgpa, creditsThisSem, cgpaData: null };
+
+    let tableHTML = `<table>
+    <tr>
+      <th>Subject Code</th><th>Theory</th><th>Practical/Internal</th>
+      <th>Total</th><th>%</th><th>Grade Point</th></tr>`;
+    detailed.forEach(d => {
+      tableHTML += `<tr><td>${d.code}</td><td>${d.theory}</td><td>${d.practical}</td>
+      <td>${d.total}</td><td>${d.percent}</td><td>${d.gradePoint}</td></tr>`;
+    });
+    tableHTML += `</table>`;
+
+    output.innerHTML = `
+      <p><strong>Name:</strong> ${result.candidateName}</p>
+      <p><strong>Father's Name:</strong> ${result.fatherName}</p>
+      <p><strong>Mother's Name:</strong> ${result.motherName}</p>
+      <p><strong>Roll No:</strong> ${result.rollNo}</p>
+      ${tableHTML}
+      <p><strong>SGPA:</strong> ${sgpa}</p>
+
+      <div class="section">
+        <label>Previous CGPA: <input id="prevCgpa" type="number" step="0.01" /></label>
+        <label>Previous Credits: <input id="prevCredits" type="number" /></label>
+        <button onclick="showFinalCGPA(${sgpa}, ${creditsThisSem})">Calculate CGPA</button>
+        <pre id="finalCgpaOutput"></pre>
+        <button onclick="downloadPDF()">Download PDF</button>
+      </div>
+    `;
+  } catch (err) {
+    console.error(err);
+    output.innerHTML = `<p style="color:red;">Error fetching result.</p>`;
+  }
+});
+
+function showFinalCGPA(sgpa, creditsThisSem) {
+  const prevCgpa = parseFloat(document.getElementById('prevCgpa').value);
+  const prevCredits = parseFloat(document.getElementById('prevCredits').value);
+  if (isNaN(prevCgpa) || isNaN(prevCredits)) {
+    alert("Please enter valid previous CGPA and credits");
+    return;
+  }
+  const result = calculateFinalCGPA(parseFloat(sgpa), creditsThisSem, prevCgpa, prevCredits);
+  lastResultData.cgpaData = result;
+  document.getElementById('finalCgpaOutput').innerText =
+    `Final CGPA: ${result.cgpa}\nEquivalent %: ${result.percentage}%\nDivision: ${result.division}`;
+}
+
+function downloadPDF() {
+  if (!lastResultData) return alert("Calculate SGPA first!");
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  let y = 20;
+
+  // Header
+  doc.setFontSize(16);
+  doc.setTextColor(0, 0, 128); // navy color
+  doc.text("CCS University Result (Unofficial Copy)", 105, y, {align:'center'});
+  y += 10;
+
+  const { result, detailed, sgpa, cgpaData } = lastResultData;
+
+  // Basic details
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0); // black
+  doc.text(`Name: ${result.candidateName}`, 20, y); y+=8;
+  doc.text(`Father's Name: ${result.fatherName}`, 20, y); y+=8;
+  doc.text(`Mother's Name: ${result.motherName}`, 20, y); y+=8;
+  doc.text(`Roll No: ${result.rollNo}`, 20, y); y+=10;
+
+  // Table header
+  doc.setFontSize(12);
+  doc.setFillColor(0, 64, 128);
+  doc.setTextColor(255,255,255);
+  doc.rect(20, y-6, 170, 8, 'F');
+  doc.text("Code", 22, y);
+  doc.text("Theory", 40, y);
+  doc.text("Practical", 65, y);
+  doc.text("Total", 95, y);
+  doc.text("%", 120, y);
+  doc.text("GP", 140, y);
+  y+=8;
+
+  // Table rows
+  doc.setTextColor(0,0,0);
+  detailed.forEach(d => {
+    doc.text(d.code, 22, y);
+    doc.text(String(d.theory), 40, y);
+    doc.text(String(d.practical), 65, y);
+    doc.text(String(d.total), 95, y);
+    doc.text(String(d.percent), 120, y);
+    doc.text(String(d.gradePoint), 140, y);
+    y+=8;
+    if (y>270) { doc.addPage(); y=20; }
+  });
+
+  y+=4;
+  doc.setFontSize(13);
+  doc.setTextColor(0, 0, 128);
+  doc.text(`SGPA: ${sgpa}`, 20, y); y+=8;
+
+  if (cgpaData) {
+    doc.text(`Final CGPA: ${cgpaData.cgpa}`, 20, y); y+=6;
+    doc.text(`Equivalent %: ${cgpaData.percentage}%`, 20, y); y+=6;
+    doc.text(`Division: ${cgpaData.division}`, 20, y); y+=6;
+  }
+
+ 
+
+    // Footer copyright
+  doc.setFontSize(10);
+  doc.setTextColor(100); // grey
+  doc.text('© 2025 Nilesh Singh', 105, 290, {align: 'center'});
+
+  doc.save('Result.pdf');
+}
+</script>
+</body>
+</html>
