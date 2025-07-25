@@ -47,7 +47,7 @@
     </select>
   </label>
   <label>Roll Number:
-    <input type="number" name="textrollnum" required maxlength="9"/>
+    <input type="text" name="textrollnum" required pattern="\d{9}" maxlength="9" minlength="9" />
   </label>
   <button type="submit">Check Result</button>
 </form>
